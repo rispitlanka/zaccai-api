@@ -10,8 +10,14 @@ const createAdminUser = async () => {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
 
+    const username = 'admin@123';
+    const email = 'admin@123';
+    const password = 'admin@123';
+
     // Check if admin user already exists
-    const existingAdmin = await User.findOne({ username: 'admin' });
+    const existingAdmin = await User.findOne({
+      $or: [{ username }, { email }]
+    });
     
     if (existingAdmin) {
       console.log('Admin user already exists!');
@@ -24,9 +30,9 @@ const createAdminUser = async () => {
 
     // Create admin user
     const adminUser = new User({
-      username: 'admin',
-      email: 'admin@rispit.com',
-      password: 'admin@123',
+      username: username,
+      email: email,
+      password: password,
       role: 'admin',
       fullName: 'System Administrator',
       isActive: true
@@ -35,9 +41,9 @@ const createAdminUser = async () => {
     await adminUser.save();
     
     console.log('✅ Admin user created successfully!');
-    console.log('Username: admin');
-    console.log('Password: admin@123');
-    console.log('Email: admin@rispit.com');
+    console.log('Username:', username);
+    console.log('Email:', email);
+    console.log('Password:', password);
     console.log('Role: admin');
 
     // Close connection
@@ -46,6 +52,9 @@ const createAdminUser = async () => {
     
   } catch (error) {
     console.error('Error creating admin user:', error);
+    if (error.code === 11000) {
+      console.error('User with this username or email already exists');
+    }
     process.exit(1);
   }
 };
