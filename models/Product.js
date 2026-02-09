@@ -134,6 +134,9 @@ const productSchema = new mongoose.Schema({
   image: {
     type: String
   },
+  sizeChartImage: {
+    type: String
+  },
   isActive: {
     type: Boolean,
     default: true
@@ -145,7 +148,14 @@ const productSchema = new mongoose.Schema({
   unit: {
     type: String,
     default: 'piece'
-  }
+  },
+  material: { type: String, trim: true },
+  fabricComposition: { type: String, trim: true },
+  style: { type: String, trim: true },
+  neckline: { type: String, trim: true },
+  fitType: { type: String, trim: true },
+  printType: { type: String, trim: true },
+  careInstruction: { type: String, trim: true }
 }, {
   timestamps: true
 });

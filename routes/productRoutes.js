@@ -12,6 +12,8 @@ import {
   uploadProductImage,
   deleteProductImage,
   updateProductImage,
+  uploadProductSizeChartImage,
+  deleteProductSizeChartImage,
   uploadVariationCombinationImage,
   updateVariationCombination,
   getActiveVariations
@@ -821,6 +823,10 @@ router.delete('/:id/image', authenticate, authorize('admin'), deleteProductImage
  *               $ref: '#/components/schemas/Error'
  */
 router.put('/:id/image', authenticate, authorize('admin'), upload.single('image'), updateProductImage);
+
+// Size chart image
+router.put('/:id/size-chart-image', authenticate, authorize('admin'), upload.single('sizeChartImage'), uploadProductSizeChartImage);
+router.delete('/:id/size-chart-image', authenticate, authorize('admin'), deleteProductSizeChartImage);
 
 // Variation value image routes
 /**
