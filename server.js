@@ -109,10 +109,19 @@ app.get('/', (req, res) => {
   });
 });
 
+// Global error handler (e.g. multer file filter, Cloudinary errors) — return JSON, not HTML
+app.use((err, req, res, next) => {
+  console.error('Error:', err.message || err);
+  const status = err.status || err.statusCode || (err.message && err.message.includes('Only image') ? 400 : 500);
+  res.status(status).json({
+    success: false,
+    message: err.message || 'Internal Server Error'
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log("https://localhost:3000")
+  console.log("http://localhost:3001")
   console.log("https://zaccai-api.onrender.com")
   
   // Start cron job to hit root route every 14 minutes

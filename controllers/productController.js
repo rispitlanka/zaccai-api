@@ -26,6 +26,17 @@ const parseJSONFields = (data, fields) => {
   return parsed;
 };
 
+// Helper to get file by field name (multer .any() provides req.files as array)
+const getFileByField = (files, fieldname) => {
+  if (!files) return null;
+  if (Array.isArray(files)) {
+    const f = files.find(file => file.fieldname === fieldname);
+    return f ? f : null;
+  }
+  const arr = files[fieldname];
+  return Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
+};
+
 export const createProduct = async (req, res) => {
   try {
     // Parse JSON fields from multipart form data
@@ -33,9 +44,14 @@ export const createProduct = async (req, res) => {
     
     const product = new Product(productData);
     
-    // Add uploaded product image if any
-    if (req.files && req.files['image']) {
-      product.image = req.files['image'][0].path;
+    // Add uploaded product image if any (multer .any() gives req.files as array)
+    const imageFile = getFileByField(req.files, 'image');
+    if (imageFile && imageFile.path) {
+      product.image = imageFile.path;
+    }
+    const sizeChartFile = getFileByField(req.files, 'sizeChartImage');
+    if (sizeChartFile && sizeChartFile.path) {
+      product.sizeChartImage = sizeChartFile.path;
     }
 
     // Process variations if they exist
@@ -92,8 +108,9 @@ export const createProduct = async (req, res) => {
         
         // Handle image upload for this combination
         const imageFieldName = `variationCombinations[${i}][image]`;
-        if (req.files && req.files[imageFieldName]) {
-          combination.image = req.files[imageFieldName][0].path;
+        const comboImageFile = getFileByField(req.files, imageFieldName);
+        if (comboImageFile && comboImageFile.path) {
+          combination.image = comboImageFile.path;
         }
         
         // Generate combination name from variations
@@ -872,6 +889,79 @@ export const updateVariationCombination = async (req, res) => {
     });
   } catch (error) {
     res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const uploadProductSizeChartImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    if (product.sizeChartImage) {
+      try {
+        const publicId = getPublicIdFromUrl(product.sizeChartImage);
+        if (publicId) await deleteFromCloudinary(publicId);
+      } catch (err) {
+        console.error('Error deleting old size chart image from Cloudinary:', err);
+      }
+    }
+    product.sizeChartImage = req.file.path;
+    await product.save();
+    res.json({
+      success: true,
+      message: 'Size chart image updated successfully',
+      sizeChartImageUrl: req.file.path,
+      product
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const deleteProductSizeChartImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    if (product.sizeChartImage) {
+      try {
+        const publicId = getPublicIdFromUrl(product.sizeChartImage);
+        if (publicId) await deleteFromCloudinary(publicId);
+      } catch (err) {
+        console.error('Error deleting size chart image from Cloudinary:', err);
+      }
+      product.sizeChartImage = undefined;
+      await product.save();
+    }
+    res.json({
+      success: true,
+      message: 'Size chart image removed successfully',
+      product
+    });
+  } catch (error) {
+    res.status(500).json({
       success: false,
       message: error.message
     });
