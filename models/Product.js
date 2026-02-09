@@ -3,8 +3,7 @@ import mongoose from 'mongoose';
 const variationCombinationSchema = new mongoose.Schema({
   sku: {
     type: String,
-    required: true,
-    unique: true,
+    required: false,
     trim: true
   },
   combinationName: {
@@ -179,9 +178,12 @@ productSchema.pre('save', function(next) {
   // Generate SKU, barcode, and QR code for variation combinations
   if (this.variationCombinations && this.variationCombinations.length > 0) {
     this.variationCombinations.forEach((combination, index) => {
-      // Generate SKU for combination if not provided
-      if (!combination.sku) {
-        combination.sku = this.sku + '-V' + (index + 1);
+      // Generate SKU for combination if not provided or is null/empty
+      if (!combination.sku || combination.sku.trim() === '') {
+        // Use a more unique SKU to avoid conflicts
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 5).toUpperCase();
+        combination.sku = (this.sku || 'PRD-' + timestamp) + '-V' + (index + 1) + '-' + random;
       }
       
       // Generate barcode ID for combination if not provided

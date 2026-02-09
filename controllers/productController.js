@@ -122,6 +122,13 @@ export const createProduct = async (req, res) => {
       for (let i = 0; i < product.variationCombinations.length; i++) {
         const combination = product.variationCombinations[i];
         
+        // Ensure SKU is always set (pre-save hook will generate if missing, but validate here too)
+        if (!combination.sku || combination.sku.trim() === '') {
+          const timestamp = Date.now();
+          const random = Math.random().toString(36).substr(2, 5).toUpperCase();
+          combination.sku = (product.sku || 'PRD-' + timestamp) + '-V' + (i + 1) + '-' + random;
+        }
+        
         // Handle image upload for this combination
         const imageFieldName = `variationCombinations[${i}][image]`;
         const comboImageFile = getFileByField(req.files, imageFieldName);
@@ -360,6 +367,14 @@ export const updateProduct = async (req, res) => {
           if (!combination || !combination.variations) {
             console.warn('Skipping invalid combination:', combination);
             continue;
+          }
+          
+          // Ensure SKU is always set (pre-save hook will generate if missing, but validate here too)
+          if (!combination.sku || combination.sku.trim() === '') {
+            const timestamp = Date.now();
+            const random = Math.random().toString(36).substr(2, 5).toUpperCase();
+            const baseSku = oldProduct.sku || 'PRD-' + timestamp;
+            combination.sku = baseSku + '-V' + (i + 1) + '-' + random;
           }
           
           // Generate combination name from variations
