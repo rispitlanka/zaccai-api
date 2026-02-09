@@ -134,6 +134,10 @@ const productSchema = new mongoose.Schema({
   image: {
     type: String
   },
+  galleryImages: {
+    type: [String],
+    default: []
+  },
   sizeChartImage: {
     type: String
   },

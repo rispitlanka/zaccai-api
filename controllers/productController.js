@@ -37,6 +37,15 @@ const getFileByField = (files, fieldname) => {
   return Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
 };
 
+// Helper to get all files matching a field name pattern (for arrays like galleryImages[0], galleryImages[1])
+const getFilesByFieldPattern = (files, pattern) => {
+  if (!files) return [];
+  if (Array.isArray(files)) {
+    return files.filter(file => file.fieldname && file.fieldname.startsWith(pattern));
+  }
+  return [];
+};
+
 export const createProduct = async (req, res) => {
   try {
     // Parse JSON fields from multipart form data
@@ -48,6 +57,13 @@ export const createProduct = async (req, res) => {
     const imageFile = getFileByField(req.files, 'image');
     if (imageFile && imageFile.path) {
       product.image = imageFile.path;
+    }
+    // Process gallery images (galleryImages[0], galleryImages[1], etc. or multiple 'galleryImages' fields)
+    const galleryFiles = getFilesByFieldPattern(req.files, 'galleryImages');
+    if (galleryFiles && galleryFiles.length > 0) {
+      product.galleryImages = galleryFiles
+        .map(file => file.path)
+        .filter(path => path); // Filter out any null/undefined paths
     }
     const sizeChartFile = getFileByField(req.files, 'sizeChartImage');
     if (sizeChartFile && sizeChartFile.path) {
@@ -271,8 +287,8 @@ export const updateProduct = async (req, res) => {
       });
     }
 
-    // Process variations if they exist in the request body
-    let updateData = { ...req.body };
+    // Parse JSON fields if multipart (galleryImages might be JSON string)
+    let updateData = parseJSONFields(req.body, ['variations', 'variationCombinations', 'galleryImages']);
     
     // Only process variations if they are explicitly provided in the request
     if (updateData.hasOwnProperty('variations')) {
@@ -357,6 +373,30 @@ export const updateProduct = async (req, res) => {
       }
     }
     // If variation combinations is not provided, don't modify existing combinations
+
+    // Handle gallery images: combine existing URLs (from JSON) with new uploaded files
+    const existingGalleryUrls = updateData.galleryImages && Array.isArray(updateData.galleryImages) 
+      ? updateData.galleryImages 
+      : [];
+    
+    if (req.files && req.files.length > 0) {
+      const galleryFiles = getFilesByFieldPattern(req.files, 'galleryImages');
+      if (galleryFiles && galleryFiles.length > 0) {
+        const newGalleryUrls = galleryFiles
+          .map(file => file.path)
+          .filter(path => path);
+        // Combine existing URLs with new file URLs
+        updateData.galleryImages = [...existingGalleryUrls, ...newGalleryUrls];
+      } else {
+        // No new files, use existing URLs array
+        updateData.galleryImages = existingGalleryUrls;
+      }
+    } else {
+      // No files uploaded, use existing URLs array (or keep old product's gallery if not provided)
+      if (updateData.hasOwnProperty('galleryImages')) {
+        updateData.galleryImages = existingGalleryUrls;
+      }
+    }
 
     const product = await Product.findByIdAndUpdate(
       req.params.id,
