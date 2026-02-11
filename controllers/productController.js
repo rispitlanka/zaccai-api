@@ -4,25 +4,33 @@ import ProductVariation from '../models/ProductVariation.js';
 import QRCode from 'qrcode';
 import { deleteFromCloudinary, getPublicIdFromUrl } from '../config/cloudinary.js';
 
-// Helper function to parse JSON fields from multipart form data
+// Helper function to parse JSON fields from multipart form data or use as-is from JSON body
 const parseJSONFields = (data, fields) => {
   const parsed = { ...data };
-  
+
   fields.forEach(field => {
-    if (data[field]) {
+    const value = data[field];
+    if (value !== undefined && value !== null) {
       try {
-        parsed[field] = JSON.parse(data[field]);
+        // Already parsed (e.g. from application/json body) — use as-is
+        if (typeof value === 'string') {
+          parsed[field] = JSON.parse(value);
+        } else if (typeof value === 'object') {
+          parsed[field] = value;
+        } else {
+          throw new Error(`Invalid type for ${field}`);
+        }
       } catch (error) {
         throw new Error(`Invalid ${field} format. Must be a valid JSON.`);
       }
     } else {
-      // Set default empty array for array fields
+      // Set default empty array for array fields when not provided
       if (field === 'variations' || field === 'variationCombinations') {
         parsed[field] = [];
       }
     }
   });
-  
+
   return parsed;
 };
 
@@ -411,6 +419,20 @@ export const updateProduct = async (req, res) => {
       if (updateData.hasOwnProperty('galleryImages')) {
         updateData.galleryImages = existingGalleryUrls;
       }
+    }
+
+    // Handle size chart image upload
+    const sizeChartFile = getFileByField(req.files, 'sizeChartImage');
+    if (sizeChartFile && sizeChartFile.path) {
+      if (oldProduct.sizeChartImage) {
+        try {
+          const publicId = getPublicIdFromUrl(oldProduct.sizeChartImage);
+          if (publicId) await deleteFromCloudinary(publicId);
+        } catch (err) {
+          console.error('Error deleting old size chart image from Cloudinary:', err);
+        }
+      }
+      updateData.sizeChartImage = sizeChartFile.path;
     }
 
     const product = await Product.findByIdAndUpdate(
