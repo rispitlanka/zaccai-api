@@ -564,7 +564,7 @@ router.get('/:id', authenticate, getProduct);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/:id', authenticate, authorize('admin'), updateProduct);
+router.put('/:id', authenticate, authorize('admin'), optionalUpload.any(), updateProduct);
 
 /**
  * @swagger
