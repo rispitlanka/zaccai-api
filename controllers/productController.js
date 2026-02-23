@@ -711,6 +711,69 @@ export const updateStock = async (req, res) => {
   }
 };
 
+/**
+ * Reduce stock for one or more products (simple or variation).
+ * Used by WooCommerce sync: when an order is placed in WC, reduce POS stock.
+ * Body: { items: [ { productId, quantity, variationCombinationId? } ] }
+ */
+export const reduceStock = async (req, res) => {
+  try {
+    const { items } = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'items array is required and must not be empty'
+      });
+    }
+
+    for (const item of items) {
+      const { productId, quantity, variationCombinationId } = item;
+      if (!productId || quantity == null || quantity < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Each item must have productId and a non-negative quantity'
+        });
+      }
+
+      const product = await Product.findById(productId);
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: `Product not found: ${productId}`
+        });
+      }
+
+      if (variationCombinationId) {
+        const combination = product.variationCombinations.id(variationCombinationId);
+        if (!combination) {
+          return res.status(404).json({
+            success: false,
+            message: `Variation combination not found: ${variationCombinationId}`
+          });
+        }
+        combination.stock = Math.max(0, (combination.stock || 0) - quantity);
+        await product.save();
+      } else {
+        await Product.findByIdAndUpdate(
+          productId,
+          { $inc: { stock: -quantity } },
+          { new: true }
+        );
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Stock reduced successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 export const uploadProductImage = async (req, res) => {
   try {
     const { id } = req.params;

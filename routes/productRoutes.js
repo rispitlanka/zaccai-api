@@ -9,6 +9,7 @@ import {
   getProductByBarcode,
   getCategories,
   updateStock,
+  reduceStock,
   uploadProductImage,
   deleteProductImage,
   updateProductImage,
@@ -667,6 +668,7 @@ router.delete('/:id', authenticate, authorize('admin'), deleteProduct);
  *               $ref: '#/components/schemas/Error'
  */
 router.put('/stock/update', authenticate, updateStock);
+router.post('/stock/reduce', authenticate, reduceStock);
 
 // Image upload routes
 /**
