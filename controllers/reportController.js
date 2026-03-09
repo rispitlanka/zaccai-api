@@ -328,7 +328,7 @@ export const getDashboardStats = async (req, res) => {
       {
         $group: {
           _id: '$payments.method',
-          totalAmount: { $sum: '$payments.amount' },
+          totalAmount: { $sum: '$total' },
           count: { $sum: 1 }
         }
       }
