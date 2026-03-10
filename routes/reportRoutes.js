@@ -21,18 +21,27 @@ const router = express.Router();
 /**
  * @swagger
  * /api/reports/sales:
+ * /api/reports/sales/{date}:
  *   get:
  *     summary: Get sales report
  *     tags: [Reports]
  *     security:
  *       - bearerAuth: []
  *     parameters:
+ *       - in: path
+ *         name: date
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: date
+ *           example: "2025-03-10"
+ *         description: Filter by specific date (YYYY-MM-DD). When provided, returns sales for that day only.
  *       - in: query
  *         name: startDate
  *         schema:
  *           type: string
  *           format: date
- *         description: Start date for report
+ *         description: Start date for report (used when date path param not provided)
  *       - in: query
  *         name: endDate
  *         schema:
@@ -124,6 +133,7 @@ const router = express.Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
+router.get('/sales/:date', authenticate, getSalesReport);
 router.get('/sales', authenticate, getSalesReport);
 
 /**
