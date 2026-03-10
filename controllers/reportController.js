@@ -134,7 +134,12 @@ export const getSalesReport = async (req, res) => {
       {
         $group: {
           _id: null,
-          totalRevenue: { $sum: '$total' },
+          totalRevenue: {
+            $add: [
+              { $sum: '$cashSales' },
+              { $sum: '$cardSales' }
+            ]
+          },
           totalOrders: { $sum: 1 },
           averageOrderValue: { $avg: '$total' },
           cashSales: { $sum: '$cashSales' },
