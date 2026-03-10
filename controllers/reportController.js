@@ -31,14 +31,36 @@ const enhanceSaleItems = (sale) => {
 
 export const getSalesReport = async (req, res) => {
   try {
-    const { startDate, endDate, groupBy = 'day' } = req.query;
-    
+    const { startDate: queryStartDate, endDate: queryEndDate, groupBy = 'day' } = req.query;
+    const { date: paramDate } = req.params;
+
     const matchQuery = {};
-    
+
+    let startDate = queryStartDate;
+    let endDate = queryEndDate;
+
+    if (paramDate) {
+      const date = new Date(paramDate);
+      if (isNaN(date.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid date in route parameter'
+        });
+      }
+      startDate = paramDate;
+      endDate = paramDate;
+    }
+
     if (startDate && endDate) {
+      const rangeStart = paramDate
+        ? new Date(startDate + 'T00:00:00.000Z')
+        : new Date(startDate);
+      const rangeEnd = paramDate
+        ? new Date(endDate + 'T23:59:59.999Z')
+        : new Date(endDate);
       matchQuery.createdAt = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
+        $gte: rangeStart,
+        $lte: rangeEnd
       };
     }
     
@@ -60,35 +82,77 @@ export const getSalesReport = async (req, res) => {
         groupFormat = { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } };
     }
     
+    const saleTotalForMethod = (method) => ({
+      $cond: [
+        {
+          $gt: [
+            {
+              $size: {
+                $filter: {
+                  input: { $ifNull: ['$payments', []] },
+                  cond: { $eq: ['$$this.method', method] }
+                }
+              }
+            },
+            0
+          ]
+        },
+        '$total',
+        0
+      ]
+    });
+
     const salesData = await Sale.aggregate([
       { $match: matchQuery },
+      {
+        $addFields: {
+          cashSales: saleTotalForMethod('cash'),
+          cardSales: saleTotalForMethod('card')
+        }
+      },
       {
         $group: {
           _id: groupFormat,
           totalSales: { $sum: '$total' },
           totalOrders: { $sum: 1 },
-          averageOrderValue: { $avg: '$total' }
+          averageOrderValue: { $avg: '$total' },
+          cashSales: { $sum: '$cashSales' },
+          cardSales: { $sum: '$cardSales' }
         }
       },
       { $sort: { _id: 1 } }
     ]);
-    
+
     const summary = await Sale.aggregate([
       { $match: matchQuery },
+      {
+        $addFields: {
+          cashSales: saleTotalForMethod('cash'),
+          cardSales: saleTotalForMethod('card')
+        }
+      },
       {
         $group: {
           _id: null,
           totalRevenue: { $sum: '$total' },
           totalOrders: { $sum: 1 },
-          averageOrderValue: { $avg: '$total' }
+          averageOrderValue: { $avg: '$total' },
+          cashSales: { $sum: '$cashSales' },
+          cardSales: { $sum: '$cardSales' }
         }
       }
     ]);
-    
+
     res.json({
       success: true,
       salesData,
-      summary: summary[0] || { totalRevenue: 0, totalOrders: 0, averageOrderValue: 0 }
+      summary: summary[0] || {
+        totalRevenue: 0,
+        totalOrders: 0,
+        averageOrderValue: 0,
+        cashSales: 0,
+        cardSales: 0
+      }
     });
   } catch (error) {
     res.status(500).json({
