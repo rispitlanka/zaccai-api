@@ -134,12 +134,7 @@ export const getSalesReport = async (req, res) => {
       {
         $group: {
           _id: null,
-          totalRevenue: {
-            $add: [
-              { $sum: '$cashSales' },
-              { $sum: '$cardSales' }
-            ]
-          },
+          totalRevenue: { $sum: '$total' },
           totalOrders: { $sum: 1 },
           averageOrderValue: { $avg: '$total' },
           cashSales: { $sum: '$cashSales' },
@@ -148,16 +143,24 @@ export const getSalesReport = async (req, res) => {
       }
     ]);
 
+    const rawSummary = summary[0] || {
+      totalRevenue: 0,
+      totalOrders: 0,
+      averageOrderValue: 0,
+      cashSales: 0,
+      cardSales: 0
+    };
+
+    const finalSummary = {
+      ...rawSummary,
+      // Force totalRevenue to be cash + card, as requested
+      totalRevenue: (rawSummary.cashSales || 0) + (rawSummary.cardSales || 0)
+    };
+
     res.json({
       success: true,
       salesData,
-      summary: summary[0] || {
-        totalRevenue: 0,
-        totalOrders: 0,
-        averageOrderValue: 0,
-        cashSales: 0,
-        cardSales: 0
-      }
+      summary: finalSummary
     });
   } catch (error) {
     res.status(500).json({
